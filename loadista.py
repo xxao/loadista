@@ -9,7 +9,7 @@ import zipfile
 import cgi
 import socket
 import urllib.parse
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 
 # settings
 version = '1.0'
@@ -40,16 +40,84 @@ class Loadista(object):
         self._server = None
         self._address = address
         self._port = int(port)
+        
+        # set data to handler
+        RequestHandler.shutdown = self.shutdown
     
     
     def start(self):
         """Starts server."""
         
+        # close previous if running
+        if self._server is not None:
+            self.shutdown()
+        
+        # init server
+        self._server = LoadistaServer((self._address, self._port), RequestHandler)
         print("Loadista running @ %s:%s" % (self._address, self._port))
         print("Please open the address in another device's browser.")
         
-        self._server = HTTPServer((self._address, self._port), RequestHandler)
+        # start server
         self._server.serve_forever()
+    
+    
+    def shutdown(self):
+        """Shuts the server down."""
+        
+        # check server
+        if self._server is None:
+            return
+        
+        # shut down server
+        self._server.shutdown()
+        print("Loadista stopped.")
+
+
+class LoadistaServer(ThreadingHTTPServer):
+    """Loadista HTTPServer."""
+    
+    
+    def serve_forever(self, **kwargs):
+        """Starts requests handling."""
+        
+        # handle requests while running
+        while self._run:
+            self.handle_request()
+    
+    
+    def server_bind(self):
+        """Binds the socket to the desired address."""
+        
+        HTTPServer.server_bind(self)
+        self.socket.settimeout(1)
+        self._run = True
+    
+    
+    def get_request(self):
+        """"""
+        
+        while self._run:
+            try:
+                sock, addr = self.socket.accept()
+                return sock, addr
+            except socket.timeout:
+                print("REQUEST TIMEOUT")
+                pass
+            except socket.error:
+                print("SOCKET ERROR")
+                pass
+    
+    
+    def shutdown(self):
+        """Sets the flag to stop server."""
+        
+        self._run = False
+    
+    
+    def is_running(self):
+        """Returns True if the server is running, False otherwise."""
+        
+        return self._run
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -91,6 +159,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         path = urllib.parse.unquote(url_data.path).rstrip('/')
         full_path = home_path + path
         
+        # shutdown
+        if path == '/__SHUTDOWN__' and getattr(self, "shutdown", None) is not None:
+            self.send_response(503)
+            self.end_headers()
+            self.shutdown()
+            return
+        
         # init page builder
         self._page = Page(path)
         
@@ -104,9 +179,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         
         # path doesn't exist
         else:
-            self.send_response(404)
-            self.send_header('Content-Type', 'text/html; charset="utf-8"')
-            self.end_headers()
+            self._page.add_message('error', "Cannot access specified folder.")
+            self._page.readonly = True
+            self._show_requested_folder(home_path)
     
     
     def do_POST(self):
@@ -157,8 +232,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         
         # write html
-        htmp = self._page.html().encode('utf-8')
-        self.wfile.write(htmp)
+        html = self._page.html().encode('utf-8')
+        self.wfile.write(html)
     
     
     def _load_folder_content(self, folder_path):
@@ -201,7 +276,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-Type', 'application/force-download')
         self.send_header('Content-Description', 'File Transfer')
-        self.send_header('Content-Disposition', 'attachement; filename="%s"' % file_name)
+        self.send_header('Content-Disposition', 'attachment; filename="%s"' % file_name)
         self.send_header('Content-Transfer-Encoding', 'binary')
         self.send_header('Content-Length', str(file_size))
         self.send_header('Cache-Control', 'must-revalidate')
@@ -371,6 +446,9 @@ class Page(object):
         html += '        </tbody>\n'
         html += '      </table>\n'
         
+        # add shutdown
+        html += '      <a href="/__SHUTDOWN__" id="shutdown" title="Stops the loadista server">SHUTDOWN</a>'
+        
         # finalize page
         html += '    </div>\n'
         html += '  </body>\n'
@@ -479,6 +557,18 @@ class Page(object):
                 float: left;
                 text-shadow: none;
                 box-shadow: 0 1px 2px #999;
+            }
+
+            #shutdown{
+                display: block;
+                margin: 1.5em 0;
+                padding: .5em 0;
+                border-top: 1px solid #ccc;
+                border-bottom: 1px solid #ccc;
+                background-color: #eee;
+                font-size: 0.75em;
+                font-weight: bold;
+                text-align: center;
             }
 
             a{
