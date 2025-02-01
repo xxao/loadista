@@ -398,7 +398,7 @@ class Page(object):
         html += '  </head>\n'
         html += '  <body>\n'
         html += '    <div id="container">\n'
-        html += '      <h1><span id="icon">&gt;</span> Pythonista - File Transfer</h1>\n'
+        html += '      <h1><a href="/" id="icon">&gt;</a> Pythonista - File Transfer</h1>\n'
         
         # add messages
         html += self._messages
@@ -557,6 +557,7 @@ class Page(object):
                 float: left;
                 text-shadow: none;
                 box-shadow: 0 1px 2px #999;
+                text-decoration: none;
             }
 
             #shutdown{
