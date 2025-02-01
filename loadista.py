@@ -4,6 +4,7 @@
 import os
 import os.path
 import datetime
+import shutil
 import zipfile
 import cgi
 import socket
@@ -276,18 +277,18 @@ class RequestHandler(BaseHTTPRequestHandler):
                 
                 # extract files
                 z.extractall(folder_path)
-                
-                # delete original file
-                os.remove(file_path)
-                
-                # delete __MACOSX
-                macosx = os.path.join(folder_path, '__MACOSX')
-                if os.path.exists(macosx):
-                    os.remove(macosx)
         
         except:
             self._page.add_message('error', "Unable to extract uploaded file.")
             return
+        
+        # delete original file
+        os.remove(file_path)
+        
+        # delete __MACOSX
+        macosx = os.path.join(folder_path, '__MACOSX')
+        if os.path.exists(macosx):
+            shutil.rmtree(macosx)
         
         # show message
         self._page.add_message('info', "File has been unzipped successfully.")
