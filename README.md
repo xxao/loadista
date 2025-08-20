@@ -6,11 +6,15 @@ existing on your iPhone or iPad, you cannot select a whole folder structure. Acc
 unnecessary complicated. Altogether, uploading a complete modules is somewhat annoying.
 
 All you have to do, is to upload the *loadista.py* into the app's *"This iPhone"* folder and run it from there.
-In console it shows an address you need to type on another device to get folder listing. Use the form to upload any
+In console, it shows an address you need to type on another device to get folder listing. Use the form to upload any
 file from that device directly into selected app's folder.
 
 To upload a whole module with multiple files and folders, just zip it and upload the zipped file. Check the
 *Unzip and delete* check box to automatically decompress it after upload.
+
+<p>
+    <img src="https://raw.githubusercontent.com/xxao/loadista/master/loadista.png" />
+</p>
 
 ## Disclaimer
 
